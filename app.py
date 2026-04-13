@@ -33,43 +33,54 @@ def pdf_to_images(pdf_file):
     return images
 
 def analyze_floorplan(image, api_key):
-    """Sends image to Gemini to extract room data with fallback models."""
+    """Sends image to Gemini using the exact models available in your account."""
     genai.configure(api_key=api_key)
     
-    # We try these names in order
-    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro-vision-latest']
+    # These names are taken directly from your diagnostic list
+    models_to_try = [
+        'gemini-2.0-flash',        # Your Item #2
+        'gemini-flash-latest',     # Your Item #16
+        'gemini-2.0-flash-001'     # Your Item #3
+    ]
     
     success_data = None
     diag_info = []
 
     for m_name in models_to_try:
         try:
+            # We use the name exactly as it appeared in your list
             model = genai.GenerativeModel(m_name)
-            prompt = "Analyze this floor plan. Return ONLY a JSON array of objects: [{'room_name': 'Office 1', 'area_sqm': 20}]"
+            
+            prompt = """
+            Analyze this floor plan image. 
+            1. Identify every room and open work area.
+            2. Estimate the area in square meters (sqm) for each.
+            3. Return the result ONLY as a valid JSON array of objects.
+            Format: [{"room_name": "Conference Room", "area_sqm": 35}]
+            """
+            
             response = model.generate_content([prompt, image])
             
+            # Clean up JSON formatting
             res_text = response.text
             if "```json" in res_text:
                 res_text = res_text.split("```json")[1].split("```")[0]
             elif "```" in res_text:
                 res_text = res_text.split("```")[1].split("```")[0]
             
+            # Convert text to actual Python data
             success_data = json.loads(res_text.strip())
             if success_data:
                 return success_data
+                
         except Exception as e:
-            diag_info.append(f"{m_name}: {str(e)}")
+            diag_info.append(f"{m_name} failed: {str(e)}")
             continue
 
-    # If all fail, show diagnostic info
-    st.error("AI Analysis Failed.")
-    with st.expander("Show Diagnostic Details"):
+    # If all models in the list fail
+    st.error("AI Analysis Failed with your available models.")
+    with st.expander("Show Detailed Error Log"):
         st.write(diag_info)
-        try:
-            st.write("Models your key can see:")
-            st.write([m.name for m in genai.list_models()])
-        except:
-            st.write("Could not list models. Check your API Key.")
     return None
 
 def generate_calculations(rooms, labor_rate, include_aq):
