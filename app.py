@@ -39,7 +39,7 @@ def pdf_to_images(pdf_file):
 def analyze_floorplan(image, api_key):
     """Sends image to Gemini to extract room data."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-pro-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = """
     Analyze this floor plan. Identify all rooms and open work areas.
