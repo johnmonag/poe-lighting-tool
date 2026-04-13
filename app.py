@@ -33,14 +33,15 @@ def pdf_to_images(pdf_file):
     return images
 
 def analyze_floorplan(image, api_key):
-    """Sends image to Gemini using the exact models available in your account."""
+    """Sends image to Gemini using models that have a high probability of free quota."""
     genai.configure(api_key=api_key)
     
-    # These names are taken directly from your diagnostic list
+    # We are using 'gemini-flash-latest' because it's the stable version 
+    # of the 1.5 Flash model which has the most reliable free tier.
     models_to_try = [
-        'gemini-2.0-flash',        # Your Item #2
-        'gemini-flash-latest',     # Your Item #16
-        'gemini-2.0-flash-001'     # Your Item #3
+        'gemini-flash-latest',   # Your Item #16 (Most reliable free tier)
+        'gemini-pro-latest',    # Your Item #18
+        'gemini-1.5-flash'      # Standard fallback
     ]
     
     success_data = None
@@ -48,7 +49,6 @@ def analyze_floorplan(image, api_key):
 
     for m_name in models_to_try:
         try:
-            # We use the name exactly as it appeared in your list
             model = genai.GenerativeModel(m_name)
             
             prompt = """
@@ -61,25 +61,28 @@ def analyze_floorplan(image, api_key):
             
             response = model.generate_content([prompt, image])
             
-            # Clean up JSON formatting
             res_text = response.text
             if "```json" in res_text:
                 res_text = res_text.split("```json")[1].split("```")[0]
             elif "```" in res_text:
                 res_text = res_text.split("```")[1].split("```")[0]
             
-            # Convert text to actual Python data
             success_data = json.loads(res_text.strip())
             if success_data:
                 return success_data
                 
         except Exception as e:
+            # If we get a 429 (Quota) or 404 (Not Found), we try the next model
             diag_info.append(f"{m_name} failed: {str(e)}")
             continue
 
-    # If all models in the list fail
-    st.error("AI Analysis Failed with your available models.")
-    with st.expander("Show Detailed Error Log"):
+    st.error("Quota or Access Error: The AI models are currently restricted on your Free Tier.")
+    with st.expander("Why am I seeing this?"):
+        st.write("Google has set a '0 limit' on newer models for some regions.")
+        st.write("**How to fix:**")
+        st.write("1. Wait 60 seconds and try again (standard rate limiting).")
+        st.write("2. Go to [Google AI Studio](https://aistudio.google.com/) and check if you can use Gemini 1.5 Flash in the chat there.")
+        st.write("3. Detailed log for developer:")
         st.write(diag_info)
     return None
 
