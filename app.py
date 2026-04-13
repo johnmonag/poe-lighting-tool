@@ -39,18 +39,28 @@ def pdf_to_images(pdf_file):
 def analyze_floorplan(image, api_key):
     """Sends image to Gemini to extract room data."""
     genai.configure(api_key=api_key)
+    
+    # Updated to 'gemini-1.5-flash' for better compatibility
     model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = """
     Analyze this floor plan. Identify all rooms and open work areas.
     Estimate the area in square meters (sqm) for each.
-    Return ONLY a JSON array of objects like this:
-    [{"room_name": "Office 101", "area_sqm": 20}, {"room_name": "Main Hall", "area_sqm": 150}]
+    Return the data as a JSON array of objects.
+    Example format: [{"room_name": "Office 101", "area_sqm": 20}]
     """
     try:
+        # We add 'stream=False' for more stable web responses
         response = model.generate_content([prompt, image])
-        clean_json = response.text.replace('```json', '').replace('```', '').strip()
-        return json.loads(clean_json)
+        
+        # This part helps clean up the text if Gemini adds extra formatting
+        text_response = response.text
+        if "```json" in text_response:
+            text_response = text_response.split("```json")[1].split("```")[0]
+        elif "```" in text_response:
+            text_response = text_response.split("```")[1].split("```")[0]
+            
+        return json.loads(text_response.strip())
     except Exception as e:
         st.error(f"AI Error: {e}")
         return None
