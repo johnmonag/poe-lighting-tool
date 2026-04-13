@@ -38,33 +38,35 @@ def pdf_to_images(pdf_file):
 
 def analyze_floorplan(image, api_key):
     """Sends image to Gemini to extract room data."""
-    genai.configure(api_key=api_key)
-    
-    # Updated to 'gemini-1.5-flash' for better compatibility
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
-    
-    prompt = """
-    Analyze this floor plan. Identify all rooms and open work areas.
-    Estimate the area in square meters (sqm) for each.
-    Return the data as a JSON array of objects.
-    Example format: [{"room_name": "Office 101", "area_sqm": 20}]
-    """
     try:
-        # We add 'stream=False' for more stable web responses
+        genai.configure(api_key=api_key)
+        
+        # Use the most basic name - the library will route it correctly
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = """
+        Analyze this floor plan. Identify all rooms and open work areas.
+        Estimate the area in square meters (sqm) for each.
+        Return ONLY a JSON array of objects. 
+        Example: [{"room_name": "Office A", "area_sqm": 25}]
+        """
+        
         response = model.generate_content([prompt, image])
         
-        # This part helps clean up the text if Gemini adds extra formatting
-        text_response = response.text
-        if "```json" in text_response:
-            text_response = text_response.split("```json")[1].split("```")[0]
-        elif "```" in text_response:
-            text_response = text_response.split("```")[1].split("```")[0]
+        # Robust JSON cleaning
+        res_text = response.text
+        if "```json" in res_text:
+            res_text = res_text.split("```json")[1].split("```")[0]
+        elif "```" in res_text:
+            res_text = res_text.split("```")[1].split("```")[0]
             
-        return json.loads(text_response.strip())
+        return json.loads(res_text.strip())
+        
     except Exception as e:
-        st.error(f"AI Error: {e}")
+        # This will help us see if it's an Auth error or a Model error
+        st.error(f"AI Error Detail: {e}")
         return None
-
+        
 def generate_calculations(rooms, labor_rate, include_aq):
     """Calculates Hardware and Labor based on detected rooms."""
     results = []
