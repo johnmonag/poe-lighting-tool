@@ -38,30 +38,58 @@ def pdf_to_images(pdf_file):
 
 def analyze_floorplan(image, api_key):
     """Sends image to Gemini to extract room data."""
-    try:
-        genai.configure(api_key=api_key)
-        
-        # Use the most basic name - the library will route it correctly
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = """
-        Analyze this floor plan. Identify all rooms and open work areas.
-        Estimate the area in square meters (sqm) for each.
-        Return ONLY a JSON array of objects. 
-        Example: [{"room_name": "Office A", "area_sqm": 25}]
-        """
-        
-        response = model.generate_content([prompt, image])
-        
-        # Robust JSON cleaning
-        res_text = response.text
-        if "```json" in res_text:
-            res_text = res_text.split("```json")[1].split("```")[0]
-        elif "```" in res_text:
-            res_text = res_text.split("```")[1].split("```")[0]
+    genai.configure(api_key=api_key)
+    
+    # List of models to try in order of preference
+    models_to_try = [
+        'gemini-1.5-flash-latest', 
+        'gemini-1.5-flash', 
+        'gemini-1.5-pro'
+    ]
+    
+    last_error = ""
+    
+    for model_name in models_to_try:
+        try:
+            model = genai.GenerativeModel(model_name)
             
-        return json.loads(res_text.strip())
+            prompt = """
+            Analyze this floor plan. Identify all rooms and open work areas.
+            Estimate the area in square meters (sqm) for each.
+            Return ONLY a JSON array of objects.
+            Example: [{"room_name": "Office 1", "area_sqm": 20}]
+            """
+            
+            response = model.generate_content([prompt, image])
+            
+            # Robust JSON cleaning
+            res_text = response.text
+            if "```json" in res_text:
+                res_text = res_text.split("```json")[1].split("```")[0]
+            elif "```" in res_text:
+                res_text = res_text.split("```")[1].split("```")[0]
+                
+            return json.loads(res_text.strip())
+            
+        except Exception as e:
+            last_error = str(e)
+            continue # Try the next model in the list
+            
+    # If it gets here, all models failed
+    st.error(f"AI could not find a compatible model. Last Error: {last_error}")
+    
+    # DIAGNOSTIC: List exactly what your key can see
+    try:
+        st.write("---")
+        st.write("🔍 **Diagnostic Info for your API Key:**")
+        st.write("Your key has access to these models:")
+        available_models = [m.name for m in genai.list_models()]
+        st.write(available_models)
+    except:
+        st.write("Could not even list models. Check if your API key is correct.")
         
+    return None
+    
     except Exception as e:
         # This will help us see if it's an Auth error or a Model error
         st.error(f"AI Error Detail: {e}")
