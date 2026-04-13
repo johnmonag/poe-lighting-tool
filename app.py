@@ -41,7 +41,7 @@ def analyze_floorplan(image, api_key):
     genai.configure(api_key=api_key)
     
     # Updated to 'gemini-1.5-flash' for better compatibility
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('models/gemini-1.5-flash')
     
     prompt = """
     Analyze this floor plan. Identify all rooms and open work areas.
