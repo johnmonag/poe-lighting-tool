@@ -1,5 +1,5 @@
+google-generativeai>=0.7.2
 streamlit
-google-generativeai
 pymupdf
 pandas
 xlsxwriter
